@@ -1,169 +1,226 @@
 # STM32F411 PID Temperature Control System
 
-A closed-loop embedded temperature controller built around **STM32F411**, combining sensor acquisition, timer-driven PID control, PWM actuation, non-volatile parameter storage, a DMA-based serial protocol, and a Python desktop monitoring/tuning GUI.
+![STM32](https://img.shields.io/badge/MCU-STM32F411-03234B?logo=stmicroelectronics&logoColor=white)
+![Embedded C](https://img.shields.io/badge/Firmware-Embedded%20C-00599C)
+![Python](https://img.shields.io/badge/Host-Python%20GUI-3776AB?logo=python&logoColor=white)
+![Control](https://img.shields.io/badge/Control-PID-orange)
 
-**Core stack:** `Embedded C` · `STM32 HAL` · `PID` · `PWM` · `UART/DMA` · `SPI Flash` · `CRC16` · `Python` · `Tkinter` · `Matplotlib`
+A portfolio-oriented embedded control project built around the **STM32F411**.  
+The system acquires temperature data, executes a timer-driven discrete PID controller, generates PWM for an external heater/actuator stage, stores configuration in W25Qxx SPI NOR Flash, and communicates with a Python desktop application for monitoring and parameter tuning.
 
-<p align="center">
-  <img src="docs/system-architecture.svg" alt="STM32F411 PID temperature control architecture" width="100%">
-</p>
+> **Recruiter note:** this repository focuses on firmware architecture, peripheral integration, control logic, serial protocol design, and PC-to-MCU integration. Performance figures such as overshoot, settling time, or temperature accuracy are intentionally not claimed because the repository does not include a complete hardware test dataset.
 
-## Engineering highlights
+## Recruiter Snapshot
 
 | Area | Implementation |
 |---|---|
-| Temperature feedback | DHT22 driver with microsecond timing, checksum validation, signed-temperature handling |
-| Control | Discrete PID loop, ~2 s update period, PWM command clamped to the TIM3 range |
-| Actuation | TIM3 Channel 1 PWM, compare range `0..999` |
-| Scheduling | TIM9 interrupt provides a 10 ms software scheduler tick |
-| Serial link | USART6, 115200 baud, Receive-to-Idle DMA |
-| Protocol | Binary framing, CRC16-Modbus, byte stuffing, command-based request/response |
-| Persistence | W25Qxx SPI NOR Flash stores setpoint and Kp/Ki/Kd |
-| Local UI | 16×2 LCD shows setpoint and measured temperature |
-| PC application | Python/Tkinter GUI with serial connection, realtime plot and PID/setpoint configuration |
+| MCU | STM32F411 |
+| Firmware | Embedded C, STM32 HAL |
+| Control | Discrete PID, timer-scheduled control loop |
+| Actuation | TIM3 PWM output |
+| Sensor | DHT22 temperature acquisition |
+| Local UI | 16x2 LCD, 4-bit interface |
+| Non-volatile storage | W25Qxx SPI NOR Flash |
+| PC communication | USART6, 115200 baud, Receive-to-Idle DMA |
+| Protocol | Custom binary frames, CRC16-Modbus, byte stuffing |
+| Desktop tooling | Python, Tkinter, PySerial, Matplotlib |
 
-## How the system operates
+## Demo
 
-1. **DHT22** provides temperature feedback to the STM32F411.
-2. A timer-driven task updates the measured temperature and the PID controller.
-3. The PID output is converted to the **TIM3 PWM** command that drives the external heater/actuator stage.
-4. The new thermal response is measured again, closing the feedback loop.
-5. The controller simultaneously exchanges data with a PC over **USART6** and saves configuration to **W25Qxx SPI Flash**.
+![Python GUI demo](docs/gui-demo.png)
 
-```text
-DHT22 ──temperature──> STM32F411 ──PID──> TIM3 PWM ──> Heater / actuator
-  ^                         │                                  │
-  │                         ├── SPI1 ──> W25Qxx Flash          │
-  │                         ├──────────> 16x2 LCD              │
-  │                         │                                  │
-  └──────────── thermal feedback <─────────────────────────────┘
+**Demo-data disclosure:** the screenshot above demonstrates the GUI and plotting workflow using synthetic/demo temperature data. It is not presented as a measured hardware performance result.
 
-                 USART6 / DMA / CRC16
-STM32F411 <────────────────────────────> Python GUI
-```
+## System Architecture
 
-## Firmware design
+~~~mermaid
+flowchart LR
+    S[DHT22<br/>Temperature Sensor] -->|Temperature feedback| MCU[STM32F411<br/>Firmware]
+    MCU --> PID[Discrete PID]
+    PID --> PWM[TIM3 PWM]
+    PWM --> H[External Heater / Actuator Stage]
 
-The firmware avoids placing all timing-sensitive work in a blocking main loop. **TIM9** generates a 10 ms scheduler tick and raises software flags for periodic tasks. The PID sample period is configured at approximately **2 s**, while **TIM10** supplies microsecond timing for the DHT22 interface.
+    MCU --> LCD[16x2 LCD]
+    MCU <-->|SPI| FLASH[W25Qxx<br/>SPI NOR Flash]
 
-The control law uses the error:
+    PC[Python GUI<br/>Tkinter + Matplotlib] <-->|USART6 115200<br/>Receive-to-Idle DMA| MCU
 
-```text
-error = setpoint - measured_temperature
-```
+    PC -. Setpoint / PID gains .-> MCU
+    MCU -. Temperature / status .-> PC
+~~~
 
-and updates the actuator command through `TIM3 CH1`. The output function clamps the compare value to `0..999` before writing it to the timer.
+A presentation-style architecture image is also available in **docs/system-architecture.png**.
 
-Project-specific firmware modules are documented in [`firmware/README.md`](firmware/README.md).
+## How It Works
 
-## Serial protocol
+1. **Acquire temperature** from the DHT22 sensor.
+2. **Compare** the measured value with the configured temperature setpoint.
+3. **Execute the discrete PID controller** on a periodic timer-driven schedule.
+4. **Apply the controller output** through TIM3 PWM to the external actuator/heater-control stage.
+5. **Display local information** on the 16x2 LCD.
+6. **Exchange data with the PC application** over USART6 while setpoint and PID gains can be persisted to W25Qxx Flash.
 
-The PC and MCU communicate with a compact framed binary protocol:
+The control loop in the current firmware is scheduled at approximately **2 seconds**.
 
-```text
+## Firmware Highlights
+
+### Timer-driven control
+
+The application separates periodic work from the main loop using timer events/software flags. Temperature acquisition and PID execution are therefore scheduled rather than implemented as a blocking desktop-style loop.
+
+### PID and PWM
+
+The controller calculates the error between the configured setpoint and measured temperature and produces a bounded control output. The current implementation maps this output to the TIM3 PWM range used by the firmware.
+
+### UART with DMA
+
+PC communication uses STM32 HAL Receive-to-Idle DMA reception. This reduces polling overhead and provides a practical foundation for framed serial communication.
+
+### Persistent configuration
+
+Setpoint and PID gains are stored in an external **W25Qxx SPI NOR Flash**, allowing configuration to survive a power cycle.
+
+### Local display
+
+A 16x2 character LCD provides local feedback for temperature and setpoint without requiring the PC application.
+
+## Serial Protocol
+
+The firmware and Python application exchange command-based binary frames.
+
+~~~text
 HEADER | COMMAND | PAYLOAD | CRC16 | TAIL
-```
+~~~
 
-| Field | Value / behavior |
+Frame delimiters used by the implementation:
+
+~~~text
+HEADER : AA 55
+TAIL   : 55 AA
+~~~
+
+Integrity and framing features:
+
+- CRC16-Modbus validation
+- Byte stuffing
+- Command-based request/response handling
+
+Representative commands in the project:
+
+| Command | Purpose |
 |---|---|
-| Header | `AA 55` |
-| Tail | `55 AA` |
-| Integrity | CRC16-Modbus |
-| Escaping | Duplicate `0xAA` bytes in the stuffed body |
-| Transport | USART6 at 115200 baud |
-| Reception | `HAL_UARTEx_ReceiveToIdle_DMA()` |
+| 0x0A | Connect / handshake |
+| 0x0B | Read PID parameters |
+| 0x0C | Read temperature and setpoint |
+| 0x0D | Save temperature setpoint |
+| 0x0F | Save PID parameters |
 
-Implemented commands:
+See **docs/PROTOCOL.md** for a concise protocol overview.
 
-| Command | ID | Purpose |
-|---|---:|---|
-| Connect | `0x0A` | Communication handshake |
-| Get PID | `0x0B` | Read Kp, Ki and Kd |
-| Get Data | `0x0C` | Read temperature and setpoint |
-| Save Setpoint | `0x0D` | Update setpoint and persist it to Flash |
-| Save PID | `0x0F` | Update PID gains and persist them to Flash |
+## Python Desktop Application
 
-## Python monitoring GUI
+The host application is implemented with:
 
-The desktop application uses **Tkinter**, **PySerial**, and **Matplotlib**. It provides COM-port selection, connect/disconnect, periodic temperature/setpoint polling, realtime plotting, setpoint updates and PID gain read/write.
+- **Tkinter** for the desktop UI
+- **PySerial** for serial communication
+- **Matplotlib** for real-time plotting
 
-<p align="center">
-  <img src="docs/gui-demo.png" alt="Python GUI demo" width="92%">
-</p>
+Main functions include:
 
-> The screenshot above is an **offline GUI preview using synthetic demo data** generated by `pc-gui/demo_dashboard.py`. It demonstrates the software UI without presenting simulated values as hardware test measurements.
+- COM-port selection
+- Connect / disconnect
+- Temperature and setpoint monitoring
+- Real-time plotting
+- Setpoint update
+- PID gain read/write
 
-## Persistent configuration
+## Repository Structure
 
-The firmware stores these values in **W25Qxx SPI NOR Flash** so they can be retained across power cycles:
-
-- temperature setpoint
-- `Kp`
-- `Ki`
-- `Kd`
-
-## Repository layout
-
-```text
-STM32F411-PID-Temperature-Control/
-├── firmware/
-│   ├── Core/
-│   │   ├── Inc/
-│   │   └── Src/
-│   ├── PID_1.ioc
-│   └── README.md
-├── pc-gui/
-│   ├── main.py
-│   ├── rs485.py
-│   ├── plotwindow.py
-│   ├── demo_dashboard.py
-│   └── requirements.txt
+~~~text
+.
+├── firmware/              STM32F411 firmware project
+├── pc-gui/                Python desktop application
 ├── docs/
-│   ├── system-architecture.svg
-│   └── gui-demo.png
+│   ├── gui-demo.png
+│   ├── system-architecture.png
+│   ├── PROTOCOL.md
+│   └── TESTING.md
+├── CV_PROJECT_SUMMARY.md
 ├── .gitignore
 └── README.md
-```
+~~~
 
-## Run the desktop GUI
+Build products, IDE metadata, Python cache files, and other generated artifacts are excluded where appropriate so the repository remains reviewable.
 
-```bash
-cd pc-gui
-python -m pip install -r requirements.txt
-python main.py
-```
+## Build and Run
 
-Generate the offline demo screenshot/UI:
+### Firmware
 
-```bash
-python demo_dashboard.py
-```
+1. Open the firmware project in **STM32CubeIDE**.
+2. Review the CubeMX/IOC peripheral configuration.
+3. Build the project for the STM32F411 target.
+4. Flash the board using the normal STM32CubeIDE/ST-LINK workflow.
+5. Connect the UART interface to the PC before starting the desktop application.
 
-## Validation status
+### Python GUI
 
-The source package contains the complete application logic and the Python sources pass syntax compilation. The original STM32 workspace had produced build artifacts before this portfolio cleanup.
+Create a virtual environment if desired, then install the Python dependencies:
 
-**No hardware-control performance number is claimed without raw test data.** Steady-state error, overshoot, rise time and settling time should be reported only after a logged heating test. This keeps the repository technically defensible during code review or interview discussion.
+~~~bash
+pip install -r pc-gui/requirements.txt
+~~~
 
-A strong next validation artifact is a CSV/plot containing:
+Run the GUI from the **pc-gui** directory using the project entry script included there.
 
-```text
-time | temperature | setpoint | PWM duty
-```
+Configure the serial port for the connected STM32 interface. The firmware uses **115200 baud**.
 
-That dataset can be used to quantify controller response and compare PID tunings.
+## Engineering Validation
 
-## What this project demonstrates
+This repository distinguishes between **implemented functionality** and **measured performance**.
 
-- Embedded C firmware development on STM32F4
-- Timer/interrupt-driven application structure
-- Sensor and LCD interfacing
-- PWM actuator control and closed-loop PID implementation
-- UART DMA and custom binary protocol design
-- CRC16 integrity checking and byte stuffing
-- SPI NOR Flash parameter persistence
-- Python-to-MCU integration and realtime visualization
+Implemented in source:
+
+- DHT22 acquisition
+- Discrete PID logic
+- Timer/PWM control
+- USART6 Receive-to-Idle DMA
+- Custom framed protocol with CRC16
+- W25Qxx parameter storage
+- LCD output
+- Python serial GUI and plotting
+
+Not claimed without additional hardware logs:
+
+- absolute temperature accuracy
+- overshoot percentage
+- settling time
+- steady-state error
+- heater power or thermal efficiency
+
+See **docs/TESTING.md** for the recommended hardware validation checklist.
+
+## What This Project Demonstrates
+
+For an Embedded Software / Firmware role, this project demonstrates practical experience with:
+
+- MCU peripheral configuration and integration
+- GPIO, timers, PWM, UART, DMA, and SPI
+- sensor-driver integration
+- closed-loop control logic
+- serial protocol design and CRC validation
+- non-volatile configuration storage
+- host-side tooling for embedded systems
+- debugging across firmware and desktop software boundaries
+
+## CV Summary
+
+**STM32F411 PID Temperature Control System**  
+STM32F411 · Embedded C · PID · PWM · UART/DMA · SPI Flash · Python
+
+- Developed a closed-loop temperature controller on STM32F411, integrating DHT22 sensing, timer-driven PID control, and TIM3 PWM output for actuator control.
+- Implemented USART6 Receive-to-Idle DMA and a custom binary protocol with CRC16-Modbus and byte stuffing; persisted setpoint and PID parameters in W25Qxx SPI NOR Flash.
+- Built a Python Tkinter/Matplotlib desktop application for temperature monitoring, plotting, setpoint configuration, and PID gain tuning over serial communication.
 
 ---
 
-**Target role:** Embedded Software / Firmware Engineering
+**Target roles:** Embedded Software Intern · Firmware Intern · Embedded Systems Intern
