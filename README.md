@@ -49,7 +49,7 @@ flowchart LR
     MCU -. Temperature / status .-> PC
 ~~~
 
-A presentation-style architecture image is also available in **docs/system-architecture.png**.
+A recruiter-friendly static version is also available below.\n\n![System architecture](docs/system-architecture.svg)
 
 ## How It Works
 
@@ -142,7 +142,7 @@ Main functions include:
 ├── pc-gui/                Python desktop application
 ├── docs/
 │   ├── gui-demo.png
-│   ├── system-architecture.png
+│   ├── system-architecture.svg
 │   ├── PROTOCOL.md
 │   └── TESTING.md
 ├── CV_PROJECT_SUMMARY.md
