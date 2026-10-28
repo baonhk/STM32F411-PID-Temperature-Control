@@ -1,0 +1,39 @@
+# STM32CubeIDE build outputs
+Debug/
+Release/
+*/Debug/
+*/Release/
+build/
+*.o
+*.d
+*.su
+*.cyclo
+*.elf
+*.map
+*.list
+*.hex
+*.bin
+*.srec
+
+# STM32CubeIDE workspace state
+.metadata/
+*/.metadata/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.idea/
+.vscode/
+.pytest_cache/
+
+# Temporary / logs
+*.log
+*.tmp
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
