@@ -27,9 +27,9 @@ The system acquires temperature data, executes a timer-driven discrete PID contr
 
 ## Demo
 
-![Python GUI demo](docs/gui-demo.png)
+![Python GUI demo](docs/gui-demo.svg)
 
-**Demo-data disclosure:** the screenshot above demonstrates the GUI and plotting workflow using synthetic/demo temperature data. It is not presented as a measured hardware performance result.
+**Demo-data disclosure:** the preview above matches the included `pc-gui/demo_gui.py` portfolio demo and uses synthetic temperature data. It is intentionally not presented as measured hardware performance.
 
 ## System Architecture
 
@@ -119,29 +119,33 @@ See **docs/PROTOCOL.md** for a concise protocol overview.
 
 ## Python Desktop Application
 
-The host application is implemented with:
+A **runnable portfolio GUI demo** is included in `pc-gui/demo_gui.py`.
+
+The demo uses:
 
 - **Tkinter** for the desktop UI
-- **PySerial** for serial communication
 - **Matplotlib** for real-time plotting
+- synthetic temperature data so it can be launched without hardware
 
-Main functions include:
+The project protocol is documented for **PySerial / USART6** integration, but the repository currently does **not** include the original hardware-connected Python serial implementation. This distinction is intentional so the portfolio does not present demo behavior as measured hardware behavior.
 
-- COM-port selection
-- Connect / disconnect
-- Temperature and setpoint monitoring
-- Real-time plotting
-- Setpoint update
-- PID gain read/write
+Demo functions include:
+
+- temperature and setpoint monitoring
+- real-time plotting
+- setpoint editing
+- PID gain controls
+- PWM visualization
 
 ## Repository Structure
 
 ~~~text
 .
-├── firmware/              STM32F411 firmware project
-├── pc-gui/                Python desktop application
+├── pc-gui/
+│   ├── demo_gui.py        Runnable synthetic GUI demo
+│   └── requirements.txt
 ├── docs/
-│   ├── gui-demo.png
+│   ├── gui-demo.svg
 │   ├── system-architecture.svg
 │   ├── PROTOCOL.md
 │   └── TESTING.md
@@ -156,23 +160,23 @@ Build products, IDE metadata, Python cache files, and other generated artifacts 
 
 ### Firmware
 
-1. Open the firmware project in **STM32CubeIDE**.
-2. Review the CubeMX/IOC peripheral configuration.
-3. Build the project for the STM32F411 target.
-4. Flash the board using the normal STM32CubeIDE/ST-LINK workflow.
-5. Connect the UART interface to the PC before starting the desktop application.
+The STM32CubeIDE firmware source is **not currently present in this repository**. Before using this repository as final application evidence, add the actual CubeIDE project so recruiters can review the implementation described above.
 
-### Python GUI
+### Python GUI Demo
 
-Create a virtual environment if desired, then install the Python dependencies:
+Install the Python dependencies:
 
 ~~~bash
 pip install -r pc-gui/requirements.txt
 ~~~
 
-Run the GUI from the **pc-gui** directory using the project entry script included there.
+Run the included hardware-independent demo:
 
-Configure the serial port for the connected STM32 interface. The firmware uses **115200 baud**.
+~~~bash
+python pc-gui/demo_gui.py
+~~~
+
+The demo is intentionally synthetic. The documented hardware link is USART6 at **115200 baud**; connect it only after the validated serial implementation is added to the repository.
 
 ## Engineering Validation
 
