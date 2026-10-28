@@ -31,6 +31,19 @@ The system acquires temperature data, executes a timer-driven discrete PID contr
 
 **Demo-data disclosure:** the preview above matches the included `pc-gui/demo_gui.py` portfolio demo and uses synthetic temperature data. It is intentionally not presented as measured hardware performance.
 
+## Repository Status
+
+The repository is currently complete for **source-code review and project reconstruction**:
+
+- integrated STM32F411 PID application source is included
+- UART DMA / CRC16 protocol source is included
+- DHT22, LCD and W25Qxx application drivers are included
+- CubeMX `.ioc`, MSP/interrupt support and linker configuration are included
+- hardware-connected Python GUI source is included
+- an offline GUI demo is included for reviewers without the board
+
+The full ST HAL/CMSIS vendor package is regenerated from the `.ioc` and is not committed to keep the portfolio focused. Hardware photos, real-run screenshots and measured thermal-performance logs are not fabricated or shown as completed evidence.
+
 ## System Architecture
 
 ~~~mermaid
@@ -49,7 +62,9 @@ flowchart LR
     MCU -. Temperature / status .-> PC
 ~~~
 
-A recruiter-friendly static version is also available below.\n\n![System architecture](docs/system-architecture.svg)
+A recruiter-friendly static version is also available below.
+
+![System architecture](docs/system-architecture.svg)
 
 ## How It Works
 
@@ -141,14 +156,22 @@ Hardware GUI functions include:
 .
 ├── firmware/
 │   ├── PID_1.ioc          STM32CubeMX configuration
+│   ├── STM32F411CEUX_FLASH.ld
+│   ├── README.md
 │   └── Core/
-│       ├── Inc/main.h
+│       ├── Inc/
+│       │   ├── main.h
+│       │   ├── stm32f4xx_hal_conf.h
+│       │   └── stm32f4xx_it.h
 │       └── Src/
 │           ├── main.c
 │           ├── proto.c/.h
 │           ├── dht22.c/.h
 │           ├── lcd.c/.h
-│           └── w25qxx.c/.h
+│           ├── w25qxx.c/.h
+│           ├── stm32f4xx_hal_msp.c
+│           ├── stm32f4xx_it.c
+│           └── system_stm32f4xx.c
 ├── pc-gui/
 │   ├── main.py            Hardware-connected GUI
 │   ├── rs485.py           Serial protocol client
@@ -171,9 +194,9 @@ Build products, IDE metadata, Python cache files, and other generated artifacts 
 
 ### Firmware
 
-Application-level STM32 source and the CubeMX `.ioc` configuration are included under `firmware/`. Open `firmware/PID_1.ioc` in STM32CubeMX/STM32CubeIDE to inspect or regenerate the MCU configuration and vendor HAL support files.
+The STM32 application source, CubeMX `.ioc`, interrupt/MSP support, HAL configuration, system clock support, and linker script are included under `firmware/`.
 
-The portfolio keeps the focus on the application code rather than committing generated build output.
+The large ST HAL/CMSIS vendor tree and generated build output are intentionally excluded. Open `firmware/PID_1.ioc` in STM32CubeMX/STM32CubeIDE and regenerate the vendor files before building. See `firmware/README.md` for the exact reconstruction workflow.
 
 ### Python GUI
 
