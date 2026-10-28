@@ -119,29 +119,40 @@ See **docs/PROTOCOL.md** for a concise protocol overview.
 
 ## Python Desktop Application
 
-A **runnable portfolio GUI demo** is included in `pc-gui/demo_gui.py`.
+The repository now includes both the **hardware-connected GUI** and a **hardware-independent demo**:
 
-The demo uses:
+- `pc-gui/main.py` — STM32 serial monitoring/tuning application
+- `pc-gui/rs485.py` — framed serial protocol, CRC16-Modbus and byte stuffing
+- `pc-gui/plotwindow.py` — real-time temperature/setpoint plotting
+- `pc-gui/demo_gui.py` — synthetic demo that can be launched without hardware
 
-- **Tkinter** for the desktop UI
-- **Matplotlib** for real-time plotting
-- synthetic temperature data so it can be launched without hardware
+Hardware GUI functions include:
 
-The project protocol is documented for **PySerial / USART6** integration, but the repository currently does **not** include the original hardware-connected Python serial implementation. This distinction is intentional so the portfolio does not present demo behavior as measured hardware behavior.
-
-Demo functions include:
-
-- temperature and setpoint monitoring
-- real-time plotting
-- setpoint editing
-- PID gain controls
-- PWM visualization
+- COM-port selection and connect/disconnect
+- real-time temperature and setpoint monitoring
+- live Matplotlib plotting
+- setpoint update
+- PID gain read/write
+- communication with the STM32 at 115200 baud
 
 ## Repository Structure
 
 ~~~text
 .
+├── firmware/
+│   ├── PID_1.ioc          STM32CubeMX configuration
+│   └── Core/
+│       ├── Inc/main.h
+│       └── Src/
+│           ├── main.c
+│           ├── proto.c/.h
+│           ├── dht22.c/.h
+│           ├── lcd.c/.h
+│           └── w25qxx.c/.h
 ├── pc-gui/
+│   ├── main.py            Hardware-connected GUI
+│   ├── rs485.py           Serial protocol client
+│   ├── plotwindow.py      Real-time plot module
 │   ├── demo_gui.py        Runnable synthetic GUI demo
 │   └── requirements.txt
 ├── docs/
@@ -160,38 +171,46 @@ Build products, IDE metadata, Python cache files, and other generated artifacts 
 
 ### Firmware
 
-The STM32CubeIDE firmware source is **not currently present in this repository**. Before using this repository as final application evidence, add the actual CubeIDE project so recruiters can review the implementation described above.
+Application-level STM32 source and the CubeMX `.ioc` configuration are included under `firmware/`. Open `firmware/PID_1.ioc` in STM32CubeMX/STM32CubeIDE to inspect or regenerate the MCU configuration and vendor HAL support files.
 
-### Python GUI Demo
+The portfolio keeps the focus on the application code rather than committing generated build output.
 
-Install the Python dependencies:
+### Python GUI
+
+Install dependencies:
 
 ~~~bash
 pip install -r pc-gui/requirements.txt
 ~~~
 
-Run the included hardware-independent demo:
+Run the hardware-connected GUI:
+
+~~~bash
+python pc-gui/main.py
+~~~
+
+Run the hardware-independent portfolio demo:
 
 ~~~bash
 python pc-gui/demo_gui.py
 ~~~
 
-The demo is intentionally synthetic. The documented hardware link is USART6 at **115200 baud**; connect it only after the validated serial implementation is added to the repository.
+The STM32 serial interface uses USART6 at **115200 baud**. The demo GUI uses synthetic data and is clearly separated from hardware measurements.
 
 ## Engineering Validation
 
 This repository distinguishes between **implemented functionality** and **measured performance**.
 
-Implemented in source:
+Implemented and now reviewable in this repository:
 
-- DHT22 acquisition
-- Discrete PID logic
-- Timer/PWM control
+- DHT22 acquisition with checksum validation
+- Discrete PID logic and timer-driven scheduling
+- TIM3 PWM actuator output
 - USART6 Receive-to-Idle DMA
-- Custom framed protocol with CRC16
-- W25Qxx parameter storage
-- LCD output
-- Python serial GUI and plotting
+- Custom framed protocol with CRC16-Modbus and byte stuffing
+- W25Qxx SPI NOR Flash parameter storage
+- 16x2 LCD output
+- Python serial GUI and real-time plotting
 
 Not claimed without additional hardware logs:
 
